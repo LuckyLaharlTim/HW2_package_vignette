@@ -1,0 +1,10 @@
+Evaluation:
+
+The tutorial provides a short introduction to the history of the package, though it could be more relevant to the uses the reader is likely interested in like a study using the library. (Though the use of the package touches that usage fairly well).
+
+The structure of the tutorial is organized with a quick takeaway, the description of the package, and major steps for the tutorial. The descriptions of code samples decreases as they become more detailed which should be corrected.
+	- there was trouble finding parameter meanings later on
+
+We will see if it is reproducible.
+
+The presentation appears well in my observation.

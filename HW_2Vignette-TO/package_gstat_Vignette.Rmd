@@ -1,0 +1,122 @@
+---
+title: "Interpolation with gstat"
+author: "Timothy Oliver"
+date: "2023-09-26"
+output: 
+  html_document:
+    toc: true
+    toc_float: true
+    code_folding: hide
+---
+
+## Abstract
+This vignette details a reproducible example of interpolation techniques in R's `gstat` package starting with a few known points of data and ending with a newly derived raster object. 
+
+# Introduction 
+
+Raster data has strong options when it comes to environmental evaluation in GIS. While the `raster` package offers analysis of existing raster data, the sampling that might be done will not always return enough data to create completely continuous raster layers. Provided geographic attributes and sample values, interpolation provides adequate predictions for values of interest despite a limited sample amount.
+
+The `gstat` R package is an implementation of an original C language program enabling geostatistical data to be modeled, predicted, or simulated in anywhere from 1 to 3 dimensions. It provides various functions such as *variogram* for creating model fits of temporal or spatial correlation and *idw* and *kriging* which predict unknown data values under assumptions of spatial autocorrelation. Use of the package only depends on use of R version 2.10 or greater with installation providing imports of related packages like sp and sf. 
+
+**This vignette shows the features of the `idw`, `variogram`, and `krige` functions from the `gstat` package in building a continuous raster object from a smaller selection of data points. For further information on `gstat` capabilities, please refer to the package [information page](https://cran.r-project.org/web/packages/gstat/index.html) and relevant [documentation](https://cran.r-project.org/web/packages/gstat/gstat.pdf).**
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE)
+```
+
+
+# Accessing gstat & Exploratory Analysis
+
+The simplest method to install the `gstat` package is to use the **install.packages()** function in R, via the R Studio Console or a standalone R script. The specific installation call is shown below.
+
+```{r install_gstat, class.source='fold-show', eval=F}
+install.packages("gstat")
+```
+
+Once completed, the `gstat` library can be loaded alongside the imported `sp` package when installing `gstat`.
+```{r gstat_demo,message =F}
+library(sp)
+library(gstat)
+```
+
+Our sampling of data is drawn from a freely available dataset, **meuse**, that comes with `gstat`. We use base R's `data` function to import the data which details a flood plain of the Meuse river near the Stein village in the Netherlands. It has information on heavy metal concentrations of the top soil at given locations alongside elevation and other features. 
+```{r sampled_data}
+
+data(meuse)
+# The meuse dataset is a publicly available data frame.
+
+# We can view the column names of the dataset with 'names(meuse)'
+```
+
+The dataset is initially a simple dataframe, but we can convert it to a *Spatial Points Data Frame* using **coordinates(meuse)** and the two fields we want to use as coordinates (x & y), though this can only be done on non-SpatialPointsDataFrame objects. A quick plot of the elevation data using bubble with the dataframe and variable as arguments returns a map of the floodplain with a few missing areas--where we have no data. This is a prime spot for interpolation.
+
+**Note: `gstat` works with sf objects as well, so conversion will not always need to be done.**
+```{r spatialConversion_and_bubblePlot}
+
+coordinates(meuse) = ~x+y
+
+bubble(meuse, "elev", col=c("#a8f490","#06ffdb"),main="elevation (m)")
+```
+
+## Inverse Distance Weighted Interpolation (IDW)
+
+To estimate the missing location points, we need a grid of our data which is also publicly available as meuse.grid. From there, the interpolation is conducted using the `idw` project with the following 3 arguments
+
+1. variable appended with '~1' or some function of the variable
+2. the normal dataset
+3. the gridded dataset
+
+...and stored in an object for quick reference later.
+The interpolated dataset can then be viewed using `ssplot` with the data as the first argument.
+```{r using_IDW}
+data(meuse.grid)
+coordinates(meuse.grid) = ~x+y
+gridded(meuse.grid) = T
+image(meuse.grid["dist"])
+title("Distance to River (red=0)")
+
+elev.idw = idw(elev~1,meuse,meuse.grid)
+
+spplot(elev.idw["var1.pred"],main = "Elevation Inverse Distance Weighted Interpolations")
+
+# optional plotting of log transformed data
+# plot(log(elev)~sqrt(dist),meuse)
+# abline(lm(log(zinc)~sqrt(dist),meuse))
+
+```
+
+## Making an Intermediate Variogram
+
+The next stage is to make a linear model of the spatial relationship between points, called a variogram. Broken down into two steps, we first
+
+- use `variogram` to build a vgm object using the variable function we want to model and the dataset
+
+followed by...
+
+- the `fit.variogram` function taking the new vgm object and a model which can be specified as shown below.
+``` {r variogram}
+lel.vgm=variogram(log(elev)~1,meuse)
+lel.fit = fit.variogram(lel.vgm,model=vgm(1,"Sph",900,1))
+
+plot(lel.vgm,lel.fit)
+```
+
+## Creating a Raster with Kriging
+
+Lastly, the raster model of our interpolated data can be created using kriging or more specifically the `krige` function. This takes in the variable function (1), normal dataset (2), gridded dataset (3), and fitted variogram model (4). It can be viewed with the `ssplot` function again where we now see a smooth and continuous range of values for elevation (or any desired variable) of our data. 
+```{r kriging_example}
+lel.kriged = krige(log(elev)~1, meuse, meuse.grid, model = lel.fit)
+
+spplot(lel.kriged["var1.pred"])
+```
+
+# Conclusion
+
+This small sample of `gstat` functions and the process of making a simple kriging raster from data points is the beginning to multiple, more nuanced capabilities of the `gstat` library. Feel free to use this example with your own data or as a gateway into further gstat [functions](https://cran.r-project.org/web/packages/gstat/gstat.pdf).
+
+The earlier mentioned packages are not the only factors that might cause issues repeating this process. For convenience, the session info for this process can be found below. Compare software and package versions or user platforms and operating systems as required.
+
+```{r SessionInfo}
+sessionInfo()
+```

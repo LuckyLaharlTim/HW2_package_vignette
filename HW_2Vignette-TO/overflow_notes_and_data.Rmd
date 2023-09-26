@@ -1,0 +1,39 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+This is an [R Markdown](http://rmarkdown.rstudio.com) Notebook. When you execute code within the notebook, the results appear beneath the code. 
+
+Try executing this chunk by clicking the *Run* button within the chunk or by placing your cursor inside it and pressing *Ctrl+Shift+Enter*.
+
+Thinking of doing Inverse Distance Weighted interpolation of something like [water surface quality](https://www.sciencedirect.com/science/article/pii/S235218642100540X) like in the paper linked. This will use **gstat** and likely feature some maps.
+
+```{r created_data}
+X = c(61,63,64,68,71,73,75)
+Y = c(139,140,129,128,140,141,128)
+Z = c(477,696,227,646,606,791,783)
+
+x_unknown = c(65,72,66,60,59)
+y_unknown = c(135,139,133,142,138)
+X1 = 65; Y1 = 137
+
+# What is Z1 or z_unknown?
+```
+
+
+```{r simple_prediction_w_created_data}
+dt = data.frame(X,Y,Z)
+coordinates(dt) <- ~X+Y
+unknownDT = data.frame(x_unknown,y_unknown)
+
+coordinates(unknownDT) <- ~x_unknown+y_unknown
+
+# prediction here
+idwModel <- idw(Z ~1, dt, unknownDT, maxdist = Inf, idp = 2)
+
+predZ = idwModel@data$var1.pred
+View(predZ)
+
+pred_dt <- data.frame(x_unknown, y_unknown, predZ)
+```
